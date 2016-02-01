@@ -89,6 +89,11 @@ if ($action == 'delchoicegroup' and confirm_sesskey() and is_enrolled($context, 
     }
 }
 
+if ($action == 'newgroup') {
+    choicegroup_insert_group($course->id,$choicegroup->id,$choicegroup->name);
+    redirect("view.php?id=$cm->id");
+}
+
 $PAGE->set_title(format_string($choicegroup->name));
 $PAGE->set_heading($course->fullname);
 
