@@ -28,26 +28,25 @@ function xmldb_choicegroup_upgrade($oldversion) {
 
         if ($oldversion < 2012042500) {
 
-            /// remove the no longer needed choicegroup_answers DB table
+            // Remove the no longer needed choicegroup_answers DB table.
             $choicegroup_answers = new xmldb_table('choicegroup_answers');
             $dbman->drop_table($choicegroup_answers);
 
-            /// change the choicegroup_options.text (text) field as choicegroup_options.groupid (int)
-            $choicegroup_options =  new xmldb_table('choicegroup_options');
-            $field_text =           new xmldb_field('text', XMLDB_TYPE_TEXT, 'small', null, null, null, null, 'choicegroupid');
-            $field_groupid =        new xmldb_field('groupid', XMLDB_TYPE_INTEGER, '10', null, null, null, '0', 'choicegroupid');
+            // Change the choicegroup_options.text (text) field as choicegroup_options.groupid (int).
+            $choicegroup_options = new xmldb_table('choicegroup_options');
+            $field_text = new xmldb_field('text', XMLDB_TYPE_TEXT, 'small', null, null, null, null, 'choicegroupid');
+            $field_groupid = new xmldb_field('groupid', XMLDB_TYPE_INTEGER, '10', null, null, null, '0', 'choicegroupid');
 
             $dbman->rename_field($choicegroup_options, $field_text, 'groupid');
             $dbman->change_field_type($choicegroup_options, $field_groupid);
 
         }
-        // Define table choicegroup to be created
+        // Define table choicegroup to be created.
         $table = new xmldb_table('choicegroup');
 
-        // Adding fields to table choicegroup
-        $newField = $table->add_field('multipleenrollmentspossible', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0');
-        $dbman->add_field($table, $newField); 
-
+        // Adding fields to table choicegroup.
+        $newfield = $table->add_field('multipleenrollmentspossible', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '0');
+        $dbman->add_field($table, $newfield);
 
         upgrade_mod_savepoint(true, 2013070900, 'choicegroup');
     }
@@ -55,17 +54,24 @@ function xmldb_choicegroup_upgrade($oldversion) {
     if ($oldversion < 2015022301) {
         $table = new xmldb_table('choicegroup');
 
-        // Adding field to table choicegroup
-        $newField = $table->add_field('sortgroupsby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        // Adding field to table choicegroup.
+        $newfield = $table->add_field('sortgroupsby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
 
-        if (!$dbman->field_exists($table, $newField)) {
-            $dbman->add_field($table, $newField);
+        if (!$dbman->field_exists($table, $newfield)) {
+            $dbman->add_field($table, $newfield);
         }
 
         upgrade_mod_savepoint(true, 2015022301, 'choicegroup');
     }
-
+    // Lihi 14.12.2015 - a field to save if students are allowed to create their own groups.
+    if ($oldversion < 2015122801) {
+        $table = new xmldb_table('choicegroup');
+        // Adding field to table choicegroup.
+        $newfield = $table->add_field('allowcreategroup', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+        if (!$dbman->field_exists($table, $newfield)) {
+            $dbman->add_field($table, $newfield);
+        }
+        upgrade_mod_savepoint(true, 2015122801, 'choicegroup');
+    }
     return true;
 }
-
-
