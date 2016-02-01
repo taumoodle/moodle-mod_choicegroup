@@ -26,19 +26,22 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once ($CFG->dirroot.'/course/moodleform_mod.php');
+require_once($CFG->dirroot.'/course/moodleform_mod.php');
+$PAGE->requires->jquery();
+$PAGE->requires->js(new moodle_url($CFG->wwwroot . '/mod/choicegroup/js/applylimit.js'));
+
 
 class mod_choicegroup_mod_form extends moodleform_mod {
 
-	function definition() {
-		global $CFG, $CHOICEGROUP_SHOWRESULTS, $CHOICEGROUP_PUBLISH, $CHOICEGROUP_DISPLAY, $DB, $COURSE, $PAGE;
+    function definition() {
+        global $CFG, $CHOICEGROUP_SHOWRESULTS, $CHOICEGROUP_PUBLISH, $CHOICEGROUP_DISPLAY, $DB, $COURSE, $PAGE;
 
-		$mform    =& $this->_form;
+        $mform    =& $this->_form;
 
 		//-------------------------------------------------------------------------------
 		$mform->addElement('header', 'general', get_string('general', 'form'));
 
-		$mform->addElement('text', 'name', get_string('choicegroupname', 'choicegroup'), array('size'=>'64'));
+		$mform->addElement('text', 'name', get_string('choicegroupname', 'choicegroup'), array('size' => '64'));
 		if (!empty($CFG->formatstringstriptags)) {
 			$mform->setType('name', PARAM_TEXT);
 		} else {
@@ -62,13 +65,9 @@ class mod_choicegroup_mod_form extends moodleform_mod {
 		$db_groups = $DB->get_records('groups', array('courseid' => $COURSE->id));
 		foreach ($db_groups as $group) {
 			$groups[$group->id] = new stdClass();
-			$groups[$group->id]->name = format_string($group->name);
+			$groups[$group->id]->name = $group->name;
 			$groups[$group->id]->mentioned = false;
 			$groups[$group->id]->id = $group->id;
-		}
-
-		if (count($db_groups) < 2) {
-			print_error('pleasesetgroups', 'choicegroup', new moodle_url('/course/view.php?id='.$COURSE->id));
 		}
 
 		$db_groupings = $DB->get_records('groupings', array('courseid' => $COURSE->id));
@@ -106,94 +105,52 @@ class mod_choicegroup_mod_form extends moodleform_mod {
 		$mform->addElement('selectyesno', 'allowupdate', get_string("allowupdate", "choicegroup"));
 
 		$mform->addElement('selectyesno', 'showunanswered', get_string("showunanswered", "choicegroup"));
+		
+		$mform->addElement('selectyesno', 'allowcreategroup', get_string("allowcreategroup", "choicegroup"));
+        $mform->setDefault('allowcreategroup', 1);
 
-		$menuoptions = array();
-		$menuoptions[0] = get_string('disable');
-		$menuoptions[1] = get_string('enable');
-		$mform->addElement('select', 'limitanswers', get_string('limitanswers', 'choicegroup'), $menuoptions);
-		$mform->addHelpButton('limitanswers', 'limitanswers', 'choicegroup');
+        $menuoptions = array();
+        $menuoptions[0] = get_string('disable');
+        $menuoptions[1] = get_string('enable');
+        $mform->addElement('select', 'limitanswers', get_string('limitanswers', 'choicegroup'), $menuoptions);
+        $mform->addHelpButton('limitanswers', 'limitanswers', 'choicegroup');
 
-		$mform->addElement('text', 'generallimitation', get_string('generallimitation', 'choicegroup'), array('size' => '6'));
-		$mform->setType('generallimitation', PARAM_INT);
-		$mform->disabledIf('generallimitation', 'limitanswers', 'neq', 1);
-		$mform->addRule('generallimitation', get_string('error'), 'numeric', 'extraruledata', 'client', false, false);
-		$mform->setDefault('generallimitation', 0);
-		$mform->addElement('button', 'setlimit', get_string('applytoallgroups', 'choicegroup'));
-		$mform->disabledIf('setlimit', 'limitanswers', 'neq', 1);
-
+        $mform->addElement('text', 'generallimitation', get_string('generallimitation', 'choicegroup'), array('size' => '6'));
+        $mform->setType('generallimitation', PARAM_INT);
+        $mform->disabledIf('generallimitation', 'limitanswers', 'neq', 1);
+        $mform->addRule('generallimitation', get_string('error'), 'numeric', 'extraruledata', 'client', false, false);
+        $mform->setDefault('generallimitation', 0);
+        $mform->addElement('button', 'setlimit', get_string('applytoallgroups', 'choicegroup'));
+        $mform->disabledIf('setlimit', 'limitanswers', 'neq', 1);
 
 		// -------------------------
 		// Generate the groups section of the form
 		// -------------------------
 
+        $mform->addElement('header', 'groups', get_string('groupsheader', 'choicegroup'));
+        $repeatarray = array();
+        $repeatarray[] = $mform->createElement('text', 'option', get_string('groupno', 'choicegroup'));
+        $repeatarray[] = $mform->createElement('text', 'limit', get_string('set_limit_for_group', 'choicegroup'));
+        $repeatarray[] = $mform->createElement('hidden', 'optionid', 0);
+        $repeatarray[] = $mform->createElement('hidden', 'groupid', 0);
+		
+        if ($this->_instance){
+            $repeatno = $DB->count_records('choicegroup_options', array('choicegroupid' => $this->_instance));
+        } else {
+            $repeatno = 5;
+        }
+		
+        $repeateloptions = array();
+        $repeateloptions['limit']['default'] = 2;
+        $repeateloptions['limit']['disabledif'] = array('limitanswers', 'eq', 0);
+        $repeateloptions['limit']['rule'] = 'numeric';
+        $repeateloptions['limit']['type'] = PARAM_INT;
 
-		$mform->addElement('header', 'groups', get_string('groupsheader', 'choicegroup'));
-		$mform->addElement('html', '<fieldset class="clearfix">
-				<div class="fcontainer clearfix">
-				<div id="fitem_id_option_0" class="fitem fitem_fselect ">
-				<div class="fitemtitle"><label for="id_option_0">'.get_string('groupsheader', 'choicegroup').'</label><span class="helptooltip"><a href="'. $CFG->wwwroot .'/help.php?component=choicegroup&amp;identifier=choicegroupoptions&amp;lang='.current_language().'" title="'.get_string('choicegroupoptions_help', 'choicegroup').'" aria-haspopup="true" target="_blank"><img src="'.$CFG->wwwroot.'/theme/image.php?theme='.$PAGE->theme->name.'&component=core&image=help" alt="'.get_string('choicegroupoptions_help', 'choicegroup').'" class="iconhelp"></a></span></div><div class="felement fselect">
-                <div class="tablecontainer">
-				<table><tr><th>'.get_string('available_groups', 'choicegroup').'</th><th>&nbsp;</th><th>'.get_string('selected_groups', 'choicegroup').'</th><th>&nbsp;</th></tr><tr><td style="vertical-align: top">');
-
-		$mform->addElement('html','<select id="availablegroups" name="availableGroups" multiple size=10 style="width:200px">');
-		foreach ($groupings as $groupingID => $grouping) {
-			// find all linked groups to this grouping
-			if (isset($grouping->linkedGroupsIDs) && count($grouping->linkedGroupsIDs) > 1) { // grouping has more than 2 items, thus we should display it (otherwise it would be clearer to display only that single group alone)
-				$mform->addElement('html', '<option value="'.$groupingID.'" style="font-weight: bold" class="grouping">'.get_string('char_bullet_expanded', 'choicegroup').$grouping->name.'</option>');
-				foreach ($grouping->linkedGroupsIDs as $linkedGroupID) {
-					if (isset($groups[$linkedGroupID])) {
-						$mform->addElement('html', '<option value="'.$linkedGroupID.'" class="group nested">&nbsp;&nbsp;&nbsp;&nbsp;'.$groups[$linkedGroupID]->name.'</option>');
-						$groups[$linkedGroupID]->mentioned = true;
-					}
-				}
-			}
-		}
-		foreach ($groups as $group) {
-			if ($group->mentioned === false) {
-				$mform->addElement('html', '<option value="'.$group->id.'" class="group toplevel">'.format_string($group->name).'</option>');
-			}
-		}
-		$mform->addElement('html','</select><br><button name="expandButton" type="button" disabled id="expandButton">'.get_string('expand_all_groupings', 'choicegroup').'</button><button name="collapseButton" type="button" disabled id="collapseButton">'.get_string('collapse_all_groupings', 'choicegroup').'</button><br>'.get_string('double_click_grouping_legend', 'choicegroup').'<br>'.get_string('double_click_group_legend', 'choicegroup'));
-
-
-
-
-
-
-		$mform->addElement('html','
-				</td><td><button id="addGroupButton" name="add" type="button" disabled>'.get_string('add', 'choicegroup').'</button><div><button name="remove" type="button" disabled id="removeGroupButton">'.get_string('del', 'choicegroup').'</button></div></td>');
-		$mform->addElement('html','<td style="vertical-align: top"><select id="id_selectedGroups" name="selectedGroups" multiple size=10 style="width:200px"></select></td>');
-
-		$mform->addElement('html','<td><div><div id="fitem_id_limit_0" class="fitem fitem_ftext" style="display:none"><div class=""><label for="id_limit_0" id="label_for_limit_ui">'.get_string('set_limit_for_group', 'choicegroup').'</label></div><div class="ftext">
-				<input class="mod-choicegroup-limit-input" type="text" value="0" id="ui_limit_input" disabled="disabled"></div></div></div></td></tr></table></div>
-				</div></div>
-
-				</div>
-				</fieldset>');
-
-		$mform->setExpanded('groups');
-
-		foreach ($groups as $group) {
-			$mform->addElement('hidden', 'group_' . $group->id . '_limit', '', array('id' => 'group_' . $group->id . '_limit', 'class' => 'limit_input_node'));
-			$mform->setType('group_' . $group->id . '_limit', PARAM_RAW);
-		}
-
-
-		$serializedselectedgroupsValue = '';
-		if (isset($this->_instance) && $this->_instance != '') {
-			// this is presumably edit mode, try to fill in the data for javascript
-			$cg = choicegroup_get_choicegroup($this->_instance);
-			foreach ($cg->option as $optionID => $groupID) {
-				$serializedselectedgroupsValue .= ';' . $groupID;
-				$mform->setDefault('group_' . $groupID . '_limit', $cg->maxanswers[$optionID]);
-			}
-
-		}
-
-
-		$mform->addElement('hidden', 'serializedselectedgroups', $serializedselectedgroupsValue, array('id' => 'serializedselectedgroups'));
-		$mform->setType('serializedselectedgroups', PARAM_RAW);
-
+        $mform->setType('option', PARAM_CLEANHTML);
+		
+        $mform->setType('optionid', PARAM_INT);
+		
+        $this->repeat_elements($repeatarray, $repeatno,$repeateloptions, 'option_repeats', 'option_add_fields', 3, 'add {no} groups', true);
         switch (get_config('choicegroup', 'sortgroupsby')) {
             case CHOICEGROUP_SORTGROUPS_CREATEDATE:
                 $systemdefault = array(CHOICEGROUP_SORTGROUPS_SYSTEMDEFAULT => get_string('systemdefault_date', 'choicegroup'));
@@ -211,26 +168,45 @@ class mod_choicegroup_mod_form extends moodleform_mod {
 		// Go on the with the remainder of the form
 		// -------------------------
 
+        $mform->addElement('header', 'timerestricthdr', get_string('timerestrict', 'choicegroup'));
+        $mform->addElement('checkbox', 'timerestrict', get_string('timerestrict', 'choicegroup'));
 
-		//-------------------------------------------------------------------------------
-		$mform->addElement('header', 'timerestricthdr', get_string('timerestrict', 'choicegroup'));
-		$mform->addElement('checkbox', 'timerestrict', get_string('timerestrict', 'choicegroup'));
+        $mform->addElement('date_time_selector', 'timeopen', get_string("choicegroupopen", "choicegroup"));
+        $mform->disabledIf('timeopen', 'timerestrict');
 
-		$mform->addElement('date_time_selector', 'timeopen', get_string("choicegroupopen", "choicegroup"));
-		$mform->disabledIf('timeopen', 'timerestrict');
+        $mform->addElement('date_time_selector', 'timeclose', get_string("choicegroupclose", "choicegroup"));
+        $mform->disabledIf('timeclose', 'timerestrict');
 
-		$mform->addElement('date_time_selector', 'timeclose', get_string("choicegroupclose", "choicegroup"));
-		$mform->disabledIf('timeclose', 'timerestrict');
-
-		//-------------------------------------------------------------------------------
-		$this->standard_coursemodule_elements();
-		//-------------------------------------------------------------------------------
-		$this->add_action_buttons();
+        //-------------------------------------------------------------------------------
+        $this->standard_coursemodule_elements();
+        //-------------------------------------------------------------------------------
+        $this->add_action_buttons();
 }
 
 function data_preprocessing(&$default_values){
 	global $DB;
-	$this->js_call();
+	if (!empty($this->_instance)) {
+				$i = 0;
+				
+				$sql = "SELECT c.id, c.groupid, c.maxanswers, g.name
+                 		FROM {choicegroup_options} c
+                 		JOIN {groups} g 
+							ON c.groupid = g.id
+                 		WHERE c.choicegroupid = :choicegroupid";
+				
+				$params = array(
+						'choicegroupid' => $this->_instance
+				);
+				
+				$groups = $DB->get_records_sql($sql, $params);
+				foreach ($groups as $group) {
+					$default_values['optionid['.$i.']'] = $group->id;
+					$default_values['option['.$i.']'] = $group->name;
+					$default_values['limit['.$i.']'] = $group->maxanswers;
+					$default_values['groupid['.$i.']'] = $group->groupid;
+					$i+=1;
+				}
+			}
 
 	if (empty($default_values['timeopen'])) {
 		$default_values['timerestrict'] = 0;
@@ -240,32 +216,12 @@ function data_preprocessing(&$default_values){
 
 	}
 
-	function validation($data, $files) {
-		$errors = parent::validation($data, $files);
-
-		$groupIDs = explode(';', $data['serializedselectedgroups']);
-		$groupIDs = array_diff( $groupIDs, array( '' ) );
-
-		if (array_key_exists('multipleenrollmentspossible', $data) && $data['multipleenrollmentspossible'] === '1') {
-			if (count($groupIDs) < 1) {
-				$errors['serializedselectedgroups'] = get_string('fillinatleastoneoption', 'choicegroup');
-			}
-		} else {
-			if (count($groupIDs) < 2) {
-				$errors['serializedselectedgroups'] = get_string('fillinatleasttwooptions', 'choicegroup');
-			}
-		}
-
-
-		return $errors;
-	}
-
 	function get_data() {
 		$data = parent::get_data();
 		if (!$data) {
 			return false;
 		}
-		// Set up completion section even if checkbox is not ticked
+		// Set up completion section even if checkbox is not ticked.
 		if (empty($data->completionsection)) {
 			$data->completionsection=0;
 		}
@@ -290,6 +246,4 @@ function data_preprocessing(&$default_values){
 			$PAGE->requires->string_for_js($string, 'choicegroup');
 		}
 	}
-
 }
-
