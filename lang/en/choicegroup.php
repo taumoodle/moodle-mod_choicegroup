@@ -150,5 +150,7 @@ $string['expand_all_groupings'] = 'Expand All Groupings';
 $string['collapse_all_groupings'] = 'Collapse All Groupings';
 $string['double_click_grouping_legend'] = 'Double click on a grouping to expand/collapse individually.';
 $string['double_click_group_legend'] = 'Double click on a group to add it.';
-
-
+$string['new_group'] = 'new group';
+$string['grouplimitation'] = 'group size limit';
+$string['groupno'] = 'Group {no}';
+$string['allowcreategroup'] = 'Allow students to create groups';
