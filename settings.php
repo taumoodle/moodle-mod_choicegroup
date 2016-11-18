@@ -29,6 +29,7 @@ defined('MOODLE_INTERNAL') || die;
 require_once($CFG->dirroot . '/mod/choicegroup/lib.php');
 
 if ($ADMIN->fulltree) {
+    
     $settings->add(new admin_setting_heading('defaults', get_string('defaultsettings', 'choicegroup'), ''));
 
     $options = choicegroup_get_sort_options();
