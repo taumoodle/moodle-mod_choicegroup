@@ -120,6 +120,8 @@ class mod_choicegroup_mod_form extends moodleform_mod {
 		$mform->setDefault('generallimitation', 0);
 		$mform->addElement('button', 'setlimit', get_string('applytoallgroups', 'choicegroup'));
 		$mform->disabledIf('setlimit', 'limitanswers', 'neq', 1);
+		
+		$mform->addElement('text', 'privatelimitation', get_string('generallimitation', 'choicegroup'), array('size' => '6'));
 
 
 		// -------------------------
